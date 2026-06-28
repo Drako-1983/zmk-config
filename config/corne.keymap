@@ -1,61 +1,235 @@
 /*
- * Copyright (c) 2020 The ZMK Contributors
+ * Corne CRKBD v3.0.1 — ZMK Keymap
+ * Migrado desde QMK/VIA
  *
- * SPDX-License-Identifier: MIT
+ * Board : NRF52840 compatible nice!nano v2
+ * Shield: corne_left / corne_right
+ *
+ * Capas:
+ *   0  Default  — QWERTY con mod-tap
+ *   1  Lower    — Números, símbolos, navegación  (MO1)
+ *   2  Raise    — Función, teclado numérico       (MO2)
+ *   3  Adjust   — RGB, Bluetooth, sistema         (MO1 + MO2 simultáneos → tri-layer)
+ *
+ * LED al presionar:
+ *   En la capa Adjust, la tecla ESPACIO activa el RGB mientras está presionada
+ *   y lo apaga al soltarla (macro led_key con macro_pause_for_release).
+ *   NOTA: rgb_ug guarda el estado en flash con debounce de ~1 min.
+ *   No daña la memoria en uso cotidiano.
+ *
+ * USB + BLE (cargar y trabajar):
+ *   El nice!nano v2 carga la batería automáticamente cuando el USB está conectado.
+ *   Por defecto ZMK envía la salida por USB.
+ *   Usa OUT_TOG (capa Adjust, tecla H) para alternar entre USB y BLE sin
+ *   desconectar el cable. La selección persiste tras reinicios.
+ *
+ * Pantallas:
+ *   Ver corne.conf para activar OLED.
+ *   Para nice!view, editar también build.yaml (instrucciones incluidas).
  */
 
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/rgb.h>
+#include <dt-bindings/zmk/outputs.h>
 
+/* Longitud de la cadena de LEDs por lado (18 per-key + 9 underglow = 27) */
 &led_strip {
-        chain-length = <27>;
+    chain-length = <27>;
 };
 
 / {
-        keymap {
-                compatible = "zmk,keymap";
 
-                default_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  Q  |  W  |  E  |  R  |  T  |   |  Y  |  U   |  I  |  O  |  P  | BSPC |
-// | CTRL |  A  |  S  |  D  |  F  |  G  |   |  H  |  J   |  K  |  L  |  ;  |  '   |
-// | SHFT |  Z  |  X  |  C  |  V  |  B  |   |  N  |  M   |  ,  |  .  |  /  | ESC  |
-//                    | GUI | LWR | SPC |   | ENT | RSE  | ALT |
-                        bindings = <
-   &kp TAB   &kp Q &kp W &kp E &kp R &kp T   &kp Y &kp U  &kp I     &kp O   &kp P    &kp BSPC
-   &kp LCTRL &kp A &kp S &kp D &kp F &kp G   &kp H &kp J  &kp K     &kp L   &kp SEMI &kp SQT
-   &kp LSHFT &kp Z &kp X &kp C &kp V &kp B   &kp N &kp M  &kp COMMA &kp DOT &kp FSLH &kp ESC
-                  &kp LGUI &mo 1 &kp SPACE   &kp RET &mo 2 &kp RALT
-                        >;
-                };
-                lower_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  1  |  2  |  3  |  4  |  5  |   |  6  |  7  |  8  |  9  |  0  | BSPC |
-// | BTCLR| BT1 | BT2 | BT3 | BT4 | BT5 |   | LFT | DWN |  UP | RGT | RGB |      |
-// | SHFT |     |     |     |     |     |   |     |     |     |     |     |      |
-//                    | GUI |     | SPC |   | ENT |     | ALT |
-                        bindings = <
-   &kp TAB    &kp N1       &kp N2       &kp N3       &kp N4       &kp N5         &kp N6   &kp N7   &kp N8 &kp N9    &kp N0 &kp BSPC
-   &bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4   &kp LEFT &kp DOWN &kp UP &kp RIGHT &rgb_ug RGB_TOG &trans
-   &kp LSHFT  &trans       &trans       &trans       &trans       &trans         &trans   &trans   &trans &trans    &trans &trans
-                                    &kp LGUI     &trans       &kp SPACE      &kp RET  &trans   &kp RALT
-                        >;
-                };
+    /* ═══════════════════════════════════════════
+     *  MACROS
+     * ═══════════════════════════════════════════ */
+    macros {
 
-                raise_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  !  |  @  |  #  |  $  |  %  |   |  ^  |  &  |  *  |  (  |  )  | BSPC |
-// | CTRL |     |     |     |     |     |   |  -  |  =  |  [  |  ]  |  \  |  `   |
-// | SHFT |     |     |     |     |     |   |  _  |  +  |  {  |  }  | "|" |  ~   |
-//                    | GUI |     | SPC |   | ENT |     | ALT |
-                        bindings = <
-   &kp  TAB  &kp EXCL &kp AT &kp HASH &kp DLLR &kp PRCNT   &kp CARET &kp AMPS  &kp ASTRK &kp LPAR &kp RPAR &kp BSPC
-   &kp LCTRL &trans   &trans &trans   &trans   &trans      &kp MINUS &kp EQUAL &kp LBKT  &kp RBKT &kp BSLH &kp GRAVE
-   &kp LSHFT &trans   &trans &trans   &trans   &trans      &kp UNDER &kp PLUS  &kp LBRC  &kp RBRC &kp PIPE &kp TILDE
-                             &kp LGUI &trans   &kp SPACE   &kp RET   &trans    &kp RALT
-                        >;
-                };
+        /* Escribe "Saseliz" + Enter  (capa Adjust, esquina sup. derecha = P) */
+        saseliz_enter: saseliz_enter {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            wait-ms = <30>;
+            tap-ms  = <30>;
+            bindings =
+                <&macro_press   &kp LSHFT>,
+                <&macro_tap     &kp S>,
+                <&macro_release &kp LSHFT>,
+                <&macro_tap     &kp A &kp S &kp E &kp L &kp I &kp Z>,
+                <&macro_tap     &kp RET>;
         };
+
+        /* Escribe "Saseliz" sin Enter  (capa Lower, posición G) */
+        saseliz: saseliz {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            wait-ms = <30>;
+            tap-ms  = <30>;
+            bindings =
+                <&macro_press   &kp LSHFT>,
+                <&macro_tap     &kp S>,
+                <&macro_release &kp LSHFT>,
+                <&macro_tap     &kp A &kp S &kp E &kp L &kp I &kp Z>;
+        };
+
+        /*
+         * LED mientras se mantiene presionada la tecla.
+         *
+         * Al presionar → RGB_ON
+         * Al soltar    → RGB_OFF
+         *
+         * Implementación: macro_pause_for_release divide la ejecución en
+         * dos momentos: press y release.
+         *
+         * Ubicación: capa Adjust → tecla ESPACIO (pulgar izquierdo centro).
+         * Para activar: mantén MO1 + MO2 y presiona ESPACIO.
+         */
+        led_key: led_key {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            wait-ms = <0>;
+            tap-ms  = <0>;
+            bindings =
+                <&macro_tap &rgb_ug RGB_ON>,
+                <&macro_pause_for_release>,
+                <&macro_tap &rgb_ug RGB_OFF>;
+        };
+
+    };
+
+
+    /* ═══════════════════════════════════════════
+     *  TRI-LAYER
+     *  Capa 3 se activa automáticamente cuando
+     *  MO1 y MO2 están presionadas simultáneamente
+     * ═══════════════════════════════════════════ */
+    conditional_layers {
+        compatible = "zmk,conditional-layers";
+        tri_layer {
+            if-layers  = <1 2>;
+            then-layer = <3>;
+        };
+    };
+
+
+    /* ═══════════════════════════════════════════
+     *  KEYMAP
+     * ═══════════════════════════════════════════ */
+    keymap {
+        compatible = "zmk,keymap";
+
+        /* ──────────────────────────────────────
+         *  CAPA 0 — Default (QWERTY)
+         *
+         *  ┌──────────┬───┬───┬───┬───┬───┐   ┌───┬───┬───┬───┬───┬──────┐
+         *  │ ALT/ESC  │ Q │ W │ E │ R │ T │   │ Y │ U │ I │ O │ P │ BSPC │
+         *  ├──────────┼───┼───┼───┼───┼───┤   ├───┼───┼───┼───┼───┼──────┤
+         *  │ SFT/CAPS │ A │ S │ D │ F │ G │   │ H │ J │ K │ L │ ; │  '   │
+         *  ├──────────┼───┼───┼───┼───┼───┤   ├───┼───┼───┼───┼───┼──────┤
+         *  │ CTL/TAB  │ Z │ X │ C │ V │ B │   │ N │ M │ , │ . │ / │  -   │
+         *  └──────────┴───┴───┴┬──┴┬──┴┬──┘   └──┬┴──┬┴──┬┴───┴───┴──────┘
+         *                      │GUI│MO1│SPC│   │ENT│MO2│RAL│
+         *                      └───┴───┴───┘   └───┴───┴───┘
+         * ────────────────────────────────────── */
+        default_layer {
+            bindings = <
+                &mt LALT ESC    &kp Q  &kp W  &kp E  &kp R  &kp T      &kp Y  &kp U  &kp I     &kp O    &kp P     &kp BSPC
+                &mt LSHFT CAPS  &kp A  &kp S  &kp D  &kp F  &kp G      &kp H  &kp J  &kp K     &kp L    &kp SEMI  &kp SQT
+                &mt LCTRL TAB   &kp Z  &kp X  &kp C  &kp V  &kp B      &kp N  &kp M  &kp COMMA &kp DOT  &kp FSLH  &kp MINUS
+                                              &kp LGUI  &mo 1  &kp SPACE    &kp RET  &mo 2  &kp RALT
+            >;
+        };
+
+        /* ──────────────────────────────────────
+         *  CAPA 1 — Lower (Números · Símbolos · Navegación)
+         *
+         *  ┌──────┬───┬───┬───┬───┬──────┐   ┌──────┬──────┬─────┬─────┬────┬─────┐
+         *  │PSCRN │ 1 │ 2 │ 3 │ 4 │  5   │   │  6   │  7   │  8  │  9  │ 0  │ DEL │
+         *  ├──────┼───┼───┼───┼───┼──────┤   ├──────┼──────┼─────┼─────┼────┼─────┤
+         *  │LSHFT │ { │ [ │ ( │ < │MACRO │   │ PGUP │ HOME │ UP  │ END │    │  `  │
+         *  ├──────┼───┼───┼───┼───┼──────┤   ├──────┼──────┼─────┼─────┼────┼─────┤
+         *  │LCTRL │ } │ ] │ ) │ > │      │   │ PGDN │ LEFT │DOWN │RGHT │ \  │  =  │
+         *  └──────┴───┴───┴┬──┴┬──┴┬─────┘   └──┬───┴──┬───┴─┬───┴─────┴────┴─────┘
+         *                  │GUI│▼▼▼│ SPC │   │ENT│▼▼▼│RAL│
+         *                  └───┴───┴─────┘   └───┴───┴───┘
+         *  MACRO = escribe "Saseliz" (sin Enter)
+         * ────────────────────────────────────── */
+        lower_layer {
+            bindings = <
+                &kp PSCRN   &kp N1    &kp N2    &kp N3    &kp N4   &kp N5       &kp N6     &kp N7    &kp N8    &kp N9     &kp N0    &kp DEL
+                &kp LSHFT   &kp LBRC  &kp LBKT  &kp LPAR  &kp LT   &saseliz     &kp PG_UP  &kp HOME  &kp UP    &kp END    &none     &kp GRAVE
+                &kp LCTRL   &kp RBRC  &kp RBKT  &kp RPAR  &kp GT   &none        &kp PG_DN  &kp LEFT  &kp DOWN  &kp RIGHT  &kp BSLH  &kp EQUAL
+                                                &kp LGUI  &trans   &kp SPACE    &kp RET    &trans    &kp RALT
+            >;
+        };
+
+        /* ──────────────────────────────────────
+         *  CAPA 2 — Raise (Función · Teclado Numérico)
+         *
+         *  ┌────┬────┬────┬─────┬─────┬─────┐   ┌──────┬──────┬──────┬──────┬───────┬────────┐
+         *  │ F1 │ F2 │ F3 │ F4  │ F5  │ F6  │   │ KP . │ KP 7 │ KP 8 │ KP 9 │ KP  + │ KP  -  │
+         *  ├────┼────┼────┼─────┼─────┼─────┤   ├──────┼──────┼──────┼──────┼───────┼────────┤
+         *  │ F7 │ F8 │ F9 │ F10 │ F11 │ F12 │   │ KP , │ KP 4 │ KP 5 │ KP 6 │ KP  * │ KP  /  │
+         *  ├────┼────┼────┼─────┼─────┼─────┤   ├──────┼──────┼──────┼──────┼───────┼────────┤
+         *  │    │    │    │     │     │ NUM │   │ KP 0 │ KP 1 │ KP 2 │ KP 3 │       │  APP   │
+         *  └────┴────┴────┴──┬──┴──┬──┴──┬──┘   └──┬───┴───┬──┴──┬───┴──────┴───────┴────────┘
+         *                    │ GUI │▼▼▼ │SPC│   │ENT│▼▼▼│RAL│
+         *                    └─────┴────┴───┘   └───┴───┴───┘
+         *  NUM = Numlock   APP = Tecla Menú/Aplicación
+         * ────────────────────────────────────── */
+        raise_layer {
+            bindings = <
+                &kp F1  &kp F2  &kp F3  &kp F4   &kp F5   &kp F6       &kp KP_DOT    &kp KP_N7  &kp KP_N8  &kp KP_N9  &kp KP_PLUS      &kp KP_MINUS
+                &kp F7  &kp F8  &kp F9  &kp F10  &kp F11  &kp F12      &kp KP_COMMA  &kp KP_N4  &kp KP_N5  &kp KP_N6  &kp KP_MULTIPLY  &kp KP_DIVIDE
+                &none   &none   &none   &none    &none    &kp KP_NUM   &kp KP_N0     &kp KP_N1  &kp KP_N2  &kp KP_N3  &none            &kp K_APP
+                                        &kp LGUI &trans   &kp SPACE    &kp RET       &trans     &kp RALT
+            >;
+        };
+
+        /* ──────────────────────────────────────
+         *  CAPA 3 — Adjust (RGB · Bluetooth · Sistema)
+         *  Activada automáticamente con MO1 + MO2
+         *
+         *  LADO IZQUIERDO — RGB underglow
+         *  ┌───────┬───────┬───────┬───────┬───┬─────┐
+         *  │ BOOT  │       │       │       │   │     │
+         *  ├───────┼───────┼───────┼───────┼───┼─────┤
+         *  │ TOG   │ HUE + │ SAT + │ BRI + │   │     │
+         *  ├───────┼───────┼───────┼───────┼───┼─────┤
+         *  │ EFF + │ HUE - │ SAT - │ BRI - │   │     │
+         *  └───────┴───────┴───────┴──┬────┴─┬─┴──┬──┘
+         *                             │ GUI  │▼▼▼│LED│ presionar=ON / soltar=OFF
+         *                             └──────┴───┴───┘
+         *
+         *  LADO DERECHO — Bluetooth + USB/BLE
+         *  ┌──────┬──────┬──────┬──────┬──────┬───────────────┐
+         *  │      │      │      │      │      │ SASELIZ+ENTER │
+         *  ├──────┼──────┼──────┼──────┼──────┼───────────────┤
+         *  │ OTOG │ BT 0 │ BT 1 │ BT 2 │ BT 3 │     BT 4      │
+         *  ├──────┼──────┼──────┼──────┼──────┼───────────────┤
+         *  │      │BTPRV │BTNXT │BTCLR │      │               │
+         *  └──────┴──────┴──────┴──┬───┴──┬───┴┬──────────────┘
+         *                          │ ENT  │▼▼▼│RAL│
+         *                          └──────┴───┴───┘
+         *
+         *  BOOT        = Bootloader (modo flasheo firmware)
+         *  TOG/EFF+    = Alternar RGB / siguiente efecto
+         *  BRI/HUE/SAT = Ajustes de color RGB
+         *  OTOG        = Alternar salida USB ↔ BLE
+         *  BT 0-4      = Seleccionar perfil Bluetooth (5 dispositivos)
+         *  BTPRV/BTNXT = Perfil anterior / siguiente
+         *  BTCLR       = Borrar emparejamiento del perfil activo
+         * ────────────────────────────────────── */
+        adjust_layer {
+            bindings = <
+                &bootloader      &none            &none            &none            &none   &none      &none         &none          &none          &none          &none          &saseliz_enter
+                &rgb_ug RGB_TOG  &rgb_ug RGB_HUI  &rgb_ug RGB_SAI  &rgb_ug RGB_BRI  &none   &none      &out OUT_TOG  &bt BT_SEL 0   &bt BT_SEL 1   &bt BT_SEL 2   &bt BT_SEL 3   &bt BT_SEL 4
+                &rgb_ug RGB_EFF  &rgb_ug RGB_HUD  &rgb_ug RGB_SAD  &rgb_ug RGB_BRD  &none   &none      &none         &bt BT_PRV     &bt BT_NXT     &bt BT_CLR     &none          &none
+                                                                   &kp LGUI         &trans  &led_key   &kp RET       &trans         &kp RALT
+            >;
+        };
+
+    };
+
 };
